@@ -10,25 +10,33 @@ from integracao.calculos import encontrar_intersecoes
 
 def plotar_funcoes(funcoes_sympy, funcoes_numpy, a, b, n=1000):
 
+    # Define o intervalo do gráfico de 'a' até 'b' dividido em 1000 pontos
+    # e inicializa a janela com um tamanho padrão de visualização (10x6)
     x_vals = np.linspace(float(a), float(b), n)
     plt.figure(figsize=(10, 6))
 
     cores = ['#4F7EFF', '#F87171', '#34D399', '#FBBF24', '#A78BFA']
 
+    # Este laço passa desenhando cada função na tela, calculando os valores 
+    # de Y para cada ponto X e aplicando uma cor diferente para cada curva
     for i, (f_sym, f_num) in enumerate(zip(funcoes_sympy, funcoes_numpy)):
         y_vals = f_num(x_vals)
         plt.plot(x_vals, y_vals,
                  label=f'f{i+1}(x) = {f_sym}',
                  linewidth=2, color=cores[i % len(cores)])
 
+    # Se houver duas ou mais funções, identifica o teto (y1) e o piso (y2) 
+    # para pintar a área presa entre as curvas e destacar seus cruzamentos
     if len(funcoes_numpy) >= 2:
         y1 = funcoes_numpy[0](x_vals)
         y2 = funcoes_numpy[1](x_vals)
 
+        # fill_between faz o preenchimento translúcido da área de integração
         plt.fill_between(x_vals, y1, y2,
                          interpolate=True, color='#4F7EFF',
                          alpha=0.15, label='Área entre curvas')
 
+        # Procura e marca com bolinhas brancas os pontos exatos de interseção
         intersecoes = encontrar_intersecoes(
             funcoes_sympy[0], funcoes_sympy[1], a, b)
 
@@ -49,12 +57,16 @@ def plotar_funcoes(funcoes_sympy, funcoes_numpy, a, b, n=1000):
 def plotar_volume_discos(funcoes_numpy, a, b, f2_numpy=None, n=400, n_theta=120):
     """
     Plota o sólido de revolução em torno do eixo X.
-    Usa surface com malha (x, theta) → (x, r·cos θ, r·sin θ).
+    
     """
+    # Mapeia o espaço 3D: 'x_vals' caminha em linha reta (Eixo X) e 'theta'
+    # configura um giro redondo completo de 360 graus (de 0 até 2*pi)
     x_vals  = np.linspace(float(a), float(b), n)
     theta   = np.linspace(0, 2 * np.pi, n_theta)
     X, T    = np.meshgrid(x_vals, theta)
 
+    # O raio de fora é moldado pela função principal. Se houver uma segunda função,
+    # ela cria um raio interno menor, gerando o efeito de um sólido oco (uma arruela)
     r_ext = np.abs(funcoes_numpy[0](x_vals))
 
     if f2_numpy is not None:
@@ -65,19 +77,20 @@ def plotar_volume_discos(funcoes_numpy, a, b, f2_numpy=None, n=400, n_theta=120)
     R_ext = np.tile(r_ext, (n_theta, 1))
     R_int = np.tile(r_int, (n_theta, 1))
 
+    # Cria o cenário tridimensional e aplica o fundo escuro do projeto
     fig = plt.figure(figsize=(11, 7))
     ax  = fig.add_subplot(111, projection='3d')
     ax.set_facecolor('#0D0F14')
     fig.patch.set_facecolor('#0D0F14')
 
-    # Superfície exterior
+    # Transforma as funções em superfícies redondas usando as fórmulas de círculo (Seno e Cosseno).
+    # O código desenha a casca exterior (azul) e a parede do buraco interno (vermelha, se houver)
     Y_ext = R_ext * np.cos(T)
     Z_ext = R_ext * np.sin(T)
     ax.plot_surface(X, Y_ext, Z_ext,
                     color='#4F7EFF', alpha=0.55, linewidth=0,
                     antialiased=True)
 
-    # Superfície interior (se houver duas funções)
     if f2_numpy is not None:
         Y_int = R_int * np.cos(T)
         Z_int = R_int * np.sin(T)
@@ -85,7 +98,8 @@ def plotar_volume_discos(funcoes_numpy, a, b, f2_numpy=None, n=400, n_theta=120)
                         color='#F87171', alpha=0.40, linewidth=0,
                         antialiased=True)
 
-    # Tampas nas extremidades
+    # Cria "tampas" circulares nas pontas do intervalo (em x=a e x=b).
+    # Evita que o sólido pareça um cano aberto, dando o visual de um objeto maciço
     for xi in [float(a), float(b)]:
         idx   = 0 if xi == float(a) else -1
         re    = r_ext[idx]
@@ -113,6 +127,7 @@ def plotar_volume_cascas(funcoes_numpy, a, b, f2_numpy=None, n=400, n_theta=120)
     Plota o sólido de revolução em torno do eixo Y (cascas cilíndricas).
     Cada x gera um cilindro de raio x e altura f(x).
     """
+    # Prepara o intervalo de alcance e o giro completo de 360 graus para moldar os cilindros
     x_vals = np.linspace(float(a), float(b), n)
     theta  = np.linspace(0, 2 * np.pi, n_theta)
 
@@ -121,7 +136,9 @@ def plotar_volume_cascas(funcoes_numpy, a, b, f2_numpy=None, n=400, n_theta=120)
     ax.set_facecolor('#0D0F14')
     fig.patch.set_facecolor('#0D0F14')
 
-    # Plotamos uma amostra de cascas para não sobrecarregar
+    # Seleciona apenas 60 posições espaçadas para desenhar os cilindros.
+    # Criar esse espaço vazio entre eles servem para conseguir 
+    # enxergar as "camadas" ou "cascas" individuais que constroem o volume total
     indices = np.linspace(0, n - 1, 60, dtype=int)
 
     for idx in indices:
@@ -131,6 +148,8 @@ def plotar_volume_cascas(funcoes_numpy, a, b, f2_numpy=None, n=400, n_theta=120)
         h_lo = min(h1, h2)
         h_hi = max(h1, h2)
 
+        # Monta os tubos verticais: a posição X vira o raio do cilindro, o Seno e Cosseno
+        # fazem o contorno redondo (efeito carrossel) e o Z define a altura (do piso ao teto)
         z_vals = np.array([h_lo, h_hi])
         T_c, Z_c = np.meshgrid(theta, z_vals)
 
@@ -154,6 +173,8 @@ def plotar_volume_cascas(funcoes_numpy, a, b, f2_numpy=None, n=400, n_theta=120)
 # ══════════════════════════════════════════
 
 def _estilo_2d(titulo):
+    # Formata o visual do gráfico 2D: ativa o fundo escuro, define os títulos, 
+    # as cores cinzas dos eixos, a grade sutil e desenha as linhas centrais (x=0 e y=0)
     plt.style.use('dark_background')
     plt.title(titulo, fontsize=14, color='white', pad=14)
     plt.xlabel("x", color='#6B7280')
@@ -168,6 +189,8 @@ def _estilo_2d(titulo):
 
 
 def _estilo_3d(ax, titulo):
+    # Formata o visual do espaço 3D: dá nome aos eixos X, Y e Z, altera a cor dos números 
+    # e desliga o preenchimento opaco das paredes do cubo para dar um efeito transparente limpo
     ax.set_title(titulo, color='white', fontsize=13, pad=14)
     ax.set_xlabel("X", color='#6B7280', labelpad=8)
     ax.set_ylabel("Y", color='#6B7280', labelpad=8)
